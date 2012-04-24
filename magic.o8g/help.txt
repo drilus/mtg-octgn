@@ -1,0 +1,10 @@
+This is the help menu.
+
+blah blah blah
+
+commands go here:
+
+[Keyboard Commands]
+Ctrl+Q	Draw a card
+Ctrl+Q	Attach equipment/Auras
+Ctrl+Shift+D	Draw x cards
