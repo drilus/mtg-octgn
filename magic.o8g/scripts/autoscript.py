@@ -12,7 +12,8 @@ versioncheck = None
 
 def clearCache(group, x = 0, y = 0):
   if confirm("Reset the Autoscript Tag cache?"):
-    setGlobalVariable('globaltags', "{ }")
+    global savedtags
+    savedtags = { }
     notify("{} reset the global tag cache.".format(me))
   if confirm("Reset the Attachment Dictionary?"):
     setGlobalVariable('cattach', "{ }")
@@ -49,13 +50,11 @@ def disable(card, x = 0, y = 0):
     autoscripts = False
     notify("{} disables autoscripts".format(me))
 
+savedtags = { }
+
 def getTags(card, key):
   mute()
-  while getGlobalVariable('globaltags') == 'CHECKOUT':
-    whisper("Global card tag dictionary is currently in use, please wait.")
-    return CRASH
-  savedtags = eval(getGlobalVariable('globaltags'))
-  setGlobalVariable('globaltags', 'CHECKOUT')
+  global savedtags
   if re.search(r"//", card.name) and card.Type != None and not re.search(r"Instant", card.Type) and not re.search(r"Sorcery", card.Type):
     if card.isAlternateImage == True:
       cardname = (card.name)[(card.name).find("/")+3:]
@@ -95,7 +94,6 @@ def getTags(card, key):
          actiondict[actionname].append(actionparam)
        tagdict[actionlist[0]] = actiondict
     savedtags[cardname] = tagdict
-  setGlobalVariable('globaltags', str(savedtags))
   if key == 'allactivate':
     st = savedtags[cardname]
     if 'initactivate1' in st: text11 = st['initactivate1']
@@ -141,7 +139,7 @@ def submitTags(card, x = 0, y = 0):
   else:
       whisper("cannot connect to online database.")
 
-def morph(card, x = 0, y = 0):
+def transform(card, x = 0, y = 0):
     mute()
     if re.search(r"//", card.name) and card.Type != None and not re.search(r"Instant", card.Type) and not re.search(r"Sorcery", card.Type):
       if re.search(r'DFC', card.Rarity):
@@ -166,6 +164,7 @@ def trigAbility(card, tagclass, pile):
     markerdict = { }
     text = ""
     inittag = getTags(card, 'init{}'.format(tagclass))
+####aura attachment####
     if tagclass == 'cast' and card.Subtype != None and re.search(r'Aura', card.Subtype):
       target = (card for card in table if card.targetedBy)
       targetcount = sum(1 for card in table if card.targetedBy)
@@ -180,12 +179,7 @@ def trigAbility(card, tagclass, pile):
           targetcard.target(False)
           setGlobalVariable('cattach', str(cattach))
           text += ", targeting {}".format(targetcard)
-    if 'marker' in inittag:
-        for markertag in inittag['marker']:
-            (markername, qty) = markertag.split(', ')
-            count = card.markers[counters[markername]]
-            if count + cardcount(card, card, qty) < 0:
-                if not confirm("Not enough {} counters to remove!\nContinue?".format(markername)): return "BREAK"
+####init tag checking####
     if 'tapped' in inittag and card.orientation == Rot90:
         if not confirm("{} is already tapped!\nContinue?".format(card.name)): return "BREAK"
     if 'untapped' in inittag and card.orientation == Rot0:
@@ -209,6 +203,13 @@ def trigAbility(card, tagclass, pile):
             else:
                 qty = cardcount(card, card, type)
                 if qty != 0: markerdict[marker] = qty
+    if 'marker' in inittag:
+        for markertag in inittag['marker']:
+            (markername, qty) = markertag.split(', ')
+            count = card.markers[counters[markername]]
+            if count + cardcount(card, card, qty) < 0:
+                if not confirm("Not enough {} counters to remove!\nContinue?".format(markername)): return "BREAK"
+####cast moves card to table####
     if tagclass == 'cast':
         card.moveToTable(0,0)
         card.markers[scriptMarkers['cast']] = 1
@@ -218,11 +219,13 @@ def trigAbility(card, tagclass, pile):
              text += stackResolve(card, 'resolve')
         cardalign()
         return text
+####cost modifier####
     if 'cost' in markerdict:
         trigtype = "cost{}".format(tagclass)
     else:
         trigtype = tagclass
-    if getTags(card, trigtype) != '':
+####create the triggered copy####
+    if trigtype == 'cycle' or getTags(card, trigtype) != '':
         stackcard = table.create(card.model, 0, 0, 1)
         if card.isAlternateImage == True:
           stackcard.switchImage
@@ -235,6 +238,7 @@ def trigAbility(card, tagclass, pile):
             stackcard.markers[scriptMarkers[markers]] += markerdict[markers]
     else:
         stackcard = card
+####autoscripts####
     if 'life' in inittag:
       for tag in inittag['life']:
         text += autolife(card, stackcard, tag)
@@ -267,6 +271,7 @@ def trigAbility(card, tagclass, pile):
     elif pile != '':
         cardowner = card.owner
         card.moveTo(cardowner.piles[pile])
+    stackcard.sendToFront()
     cardalign()
     return text
 
@@ -423,7 +428,7 @@ def cardalign():
     return "BREAK"
   while getGlobalVariable('cattach') == 'CHECKOUT':
     whisper("Global card attachment dictionary is currently in use, please wait.")
-    return CRASH
+    return "BREAK"
   cattach = eval(getGlobalVariable('cattach'))
   setGlobalVariable('cattach', 'CHECKOUT') not in table
   group1 = [cardid for cardid in cattach if Card(cattach[cardid]) not in table]
@@ -447,6 +452,7 @@ def cardalign():
         or scriptMarkers['etb'] in card.markers
         or scriptMarkers['cost'] in card.markers
         or scriptMarkers['x'] in card.markers
+        or scriptMarkers['cycle'] in card.markers
         or scriptMarkers['miracle'] in card.markers)
   for card in stackcards:
       if card.controller == me:
@@ -467,6 +473,7 @@ def cardalign():
         and not scriptMarkers['etb'] in card.markers
         and not scriptMarkers['cost'] in card.markers
         and not scriptMarkers['x'] in card.markers
+        and not scriptMarkers['cycle'] in card.markers
         and not scriptMarkers['miracle'] in card.markers
         and not counters['general'] in card.markers
         and not card._id in cattach]
@@ -512,6 +519,7 @@ def cardalign():
         and not scriptMarkers['etb'] in card.markers
         and not scriptMarkers['cost'] in card.markers
         and not scriptMarkers['x'] in card.markers
+        and not scriptMarkers['cycle'] in card.markers
         and not scriptMarkers['miracle'] in card.markers
         and not counters['general'] in card.markers
         and card._id in cattach]
@@ -679,17 +687,24 @@ def autotoken(card, stackcard, tag):
 def automarker(card, stackcard, tag):
   (markername, qty) = tag.split(', ')
   quantity = cardcount(card, stackcard, qty)
+  originalquantity = quantity
   if quantity == 1:
     quant = ""
   else:
     quant = "s"
   addmarker = counters[markername]
+  while markername == "plusoneplusone" and counters["minusoneminusone"] in card.markers and quantity > 0:
+    card.markers[counters["minusoneminusone"]] -= 1
+    quantity -= 1
+  while markername == "minusoneminusone" and counters["plusoneplusone"] in card.markers and quantity > 0:
+    card.markers[counters["plusoneplusone"]] -= 1
+    quantity -= 1
   card.markers[addmarker] += quantity
-  if quantity > 0:
+  if originalquantity > 0:
       sign = "+"
   else:
       sign = ""
-  return ", {}{} {}{}".format(sign, quantity, addmarker[0], quant)
+  return ", {}{} {}{}".format(sign, originalquantity, addmarker[0], quant)
 
 def autohighlight(card, color):
   if color == "nountap":
@@ -762,19 +777,6 @@ def autoAddMarker(card, x = 0, y = 0):
         card.markers[addmarker] += 1
       text += "one {}, ".format(addmarker[0])
     notify("{} adds {} to {}.".format(me, text[0:-2], card))
-
-def autoRemoveMarker(card, x = 0, y = 0):
-  mute()
-  text = ""
-  markers = getTags(card, 'automarker')
-  if markers != "":
-    for marker in markers:
-      addmarker = counters[marker]
-      if addmarker in card.markers:
-        card.markers[addmarker] -= 1
-        text += "one {}, ".format(addmarker[0])
-    if text != "":
-      notify("{} removes {} from {}.".format(me, text[0:-2], card))
 
 def smartMarker(card, x = 0, y = 0):
   mute()

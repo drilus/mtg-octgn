@@ -165,6 +165,15 @@ def token(group, x = 0, y = 0):
 #Card functions
 ############################
 
+def morph(card, x = 0, y = 0):
+  mute()
+  src = card.group
+  notify("{} casts a card face-down from their {}.".format(me, src.name))
+  card.moveToTable(0,0,True)
+  if autoscripts == True:
+    card.markers[scriptMarkers['cast']] = 1
+    cardalign()
+
 def play(card, x = 0, y = 0):
   mute()
   if autoscripts == True:
@@ -182,6 +191,9 @@ def resolve(card, x = 0, y = 0):
     if scriptMarkers['miracle'] in card.markers:
       text = stackResolve(card, 'miracle')
       notify("{}'s {} Miracle trigger resolves{}.".format(me, card, text))
+    elif scriptMarkers['cycle'] in card.markers:
+      text = stackResolve(card, 'cycle')
+      notify("{}'s {} cycle trigger resolves{}.".format(me, card, text))
     elif scriptMarkers['attack'] in card.markers:
       text = stackResolve(card, 'attack')
       notify("{}'s {} attack trigger resolves{}.".format(me, card, text))
@@ -321,6 +333,16 @@ def activate(card, x = 0, y = 0):
   else:
     notify("{} uses {}'s ability.".format(me, card))
 
+def cycle(card, x = 0, y = 0):
+  mute()
+  if autoscripts == True:
+    text = trigAbility(card, 'cycle', 'Graveyard')
+    if text != "BREAK":
+      notify("{} cycles {}{}.".format(me, card, text))
+  else:
+    card.moveTo(me.Graveyard)
+    notify("{} cycles {}.".format(me, card))
+
 def rulings(card, x = 0, y = 0):
   mute()
   if not card.MultiverseId == None:
@@ -405,11 +427,6 @@ def addPlusOneMarker(card, x = 0, y = 0):
     else:
         card.markers[counters['plusoneplusone']] += 1
 
-def addLoyaltyMarker(card, x = 0, y = 0):
-    mute()
-    notify("{} adds a Loyalty counter to {}.".format(me, card))
-    card.markers[counters['loyalty']] += 1
-
 def addChargeMarker(card, x = 0, y = 0):
     mute()
     notify("{} adds a Charge counter to {}.".format(me, card))
@@ -426,14 +443,6 @@ def removePlusOneMarker(card, x = 0, y = 0):
 def removeMinusOneMarker(card, x = 0, y = 0):
     mute()
     addmarker = counters['minusoneminusone']
-    if addmarker in card.markers:
-      card.markers[addmarker] -= 1
-      markername = addmarker[0]
-      notify("{} removes a {} from {}".format(me, markername, card))
-
-def removeLoyaltyMarker(card, x = 0, y = 0):
-    mute()
-    addmarker = counters['loyalty']
     if addmarker in card.markers:
       card.markers[addmarker] -= 1
       markername = addmarker[0]
@@ -461,7 +470,8 @@ def tolibrary(card, x = 0, y = 0):
 def tolibraryposition(card, x = 0, y = 0):
     mute()
     pos = askInteger("Move to what position?\nNOTE: 0 is the top.", 0)
-    fromText = "Battlefield" if src == table else src.name
+    src = card.group
+    fromText = "the Battlefield" if src == table else src.name
     if pos == None: return
     if pos > len(me.Library):
       notify("{} moves {} from {} to Library (bottom).".format(me, card, fromText))
@@ -498,12 +508,19 @@ def randomDiscard(group):
     notify("{} randomly discards {}.".format(me, card))
     card.moveTo(me.Graveyard)
 
-def randomPick(group):
+def randomPick(group, x = 0, y = 0):
     mute()
     card = group.random()
     if card == None: return
-    rnd(10,100)
-    notify("{} randomly picks {} from their {}.".format(me, card, group.name))
+    card.select()
+    card.target(True)
+    if not card.isFaceUp:
+      if confirm("Reveal randomly-picked {}?".format(card.name)): card.isFaceUp = True
+      rnd(10,100)
+    if group == table:
+      notify("{} randomly picks {}'s {} on the battlefield.".format(me, card.controller, card))
+    else:
+      notify("{} randomly picks {} from their {}.".format(me, card, group.name))
 
 def mulligan(group):
     mute()
