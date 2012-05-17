@@ -9,7 +9,8 @@
   <globalvariables> 
     <globalvariable name="cattach" value="{ }"/>
     <globalvariable name="smartmarker" value=""/>
-    <globalvariable name="fontsize" value="14"/>
+    <globalvariable name="fontsize" value="12"/>
+    <globalvariable name="chatsize" value="10"/>
   </globalvariables>
   <card back="r01" front="r02" width="63" height="88" cornerRadius="2">
     <property name="Cost" type="String" ignoreText="true" />
